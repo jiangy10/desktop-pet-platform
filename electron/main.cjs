@@ -129,10 +129,41 @@ function load(win, page) {
   else win.loadFile(path.join(__dirname, "..", "dist", `${page}.html`));
 }
 
+// Electron's screen API caches display info (stale when the Dock auto-hides or another app goes fullscreen),
+// so ask AppKit directly for the bottom inset (Dock height; 0 when hidden or in fullscreen).
+const { execFile } = require("child_process");
+const INSET_JS = `ObjC.import("AppKit");ObjC.import("CoreGraphics");
+const sc=$.NSScreen.screens.objectAtIndex(0);const f=sc.frame;
+const list=ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo(1,0)))||[];
+const fs=list.some(w=>w.kCGWindowLayer===0&&w.kCGWindowBounds&&w.kCGWindowBounds.X===0&&w.kCGWindowBounds.Width>=f.size.width-1&&w.kCGWindowBounds.Y+w.kCGWindowBounds.Height>=f.size.height-1);
+const sw=f.size.width-1,sh=f.size.height-1;
+const moving=list.some(w=>w.kCGWindowBounds&&w.kCGWindowBounds.Width>=sw&&w.kCGWindowBounds.Height>=sh&&w.kCGWindowBounds.X!==0);
+JSON.stringify(moving?-1:fs?0:sc.visibleFrame.origin.y-f.origin.y)`; // -1 = space-switch animation in progress, reading is meaningless // another app fullscreen (a full-width window reaching the screen bottom, which the Dock normally blocks) => Dock is hidden
+function bottomInset() {
+  return new Promise((resolve) => {
+    if (process.platform !== "darwin") return resolve(null);
+    execFile("osascript", ["-l", "JavaScript", "-e", INSET_JS], { timeout: 2000 }, (err, out) => {
+      const n = err ? NaN : Number(out);
+      resolve(Number.isFinite(n) ? n : null);
+    });
+  });
+}
+
+// Returns null while a space switch animation is running (keep the current position).
+async function petBounds() {
+  const d = screen.getPrimaryDisplay();
+  const { x, width } = d.workArea;
+  const inset = await bottomInset();
+  if (process.env.PET_DEBUG) require("fs").appendFileSync("/tmp/pet-debug.log", `${new Date().toISOString()} inset=${inset} bounds=${JSON.stringify(d.bounds)} work=${JSON.stringify(d.workArea)}\n`);
+  if (inset === -1) return null;
+  const bottom = inset == null ? d.workArea.y + d.workArea.height : d.bounds.y + d.bounds.height - inset;
+  return { x, y: Math.round(bottom - PET_HEIGHT), width, height: PET_HEIGHT };
+}
+
 function createPetWindow() {
-  const { x, y, width, height } = screen.getPrimaryDisplay().workArea;
+  const d0 = screen.getPrimaryDisplay().workArea;
   petWin = new BrowserWindow({
-    x, y: y + height - PET_HEIGHT, width, height: PET_HEIGHT,
+    x: d0.x, y: d0.y + d0.height - PET_HEIGHT, width: d0.width, height: PET_HEIGHT,
     frame: false, transparent: true, hasShadow: false, resizable: false,
     alwaysOnTop: true, focusable: false, skipTaskbar: true,
     backgroundColor: "#00000000",
@@ -143,7 +174,36 @@ function createPetWindow() {
   petWin.setIgnoreMouseEvents(true);
   petWin.webContents.setBackgroundThrottling(false);
   load(petWin, "pet");
-  petWin.on("closed", () => { petWin = null; });
+  // Dock show/hide/resize (or switching to a fullscreen app) changes workArea without a reliable event, so poll.
+  // Only move once the reading has been stable for a few polls: space-switch animations make it flicker,
+  // and we never reset to a default position, just adjust in place when the new state is confirmed.
+  let busy = false, pending = null, streak = 0, desired = petWin.getBounds(), selfMove = false;
+  const apply = (b) => { desired = b; selfMove = true; petWin.setBounds(b); selfMove = false; };
+  // If macOS itself moves the window (e.g. re-constraining it on a space switch), put it straight back.
+  petWin.on("moved", () => {
+    if (!petWin || selfMove) return;
+    const c = petWin.getBounds();
+    if (process.env.PET_DEBUG) require("fs").appendFileSync("/tmp/pet-debug.log", `${new Date().toISOString()} MOVED y=${c.y} desired=${desired.y}\n`);
+    if (c.y !== desired.y || c.x !== desired.x) apply(desired);
+  });
+  const refit = async () => {
+    if (!petWin || busy) return;
+    busy = true;
+    try {
+      const b = await petBounds();
+      if (!petWin) return;
+      if (!b) { pending = null; streak = 0; return; }
+      const c = petWin.getBounds();
+      if (b.x === c.x && b.y === c.y && b.width === c.width && b.height === c.height) { pending = null; streak = 0; return; }
+      if (pending && pending.y === b.y && pending.x === b.x && pending.width === b.width) streak++;
+      else { pending = b; streak = 1; }
+      if (streak >= 3) { apply(b); pending = null; streak = 0; }
+    } finally { busy = false; }
+  };
+  refit();
+  const timer = setInterval(refit, 250);
+  screen.on("display-metrics-changed", refit);
+  petWin.on("closed", () => { clearInterval(timer); screen.removeListener("display-metrics-changed", refit); petWin = null; });
 }
 
 function openEditor() {
