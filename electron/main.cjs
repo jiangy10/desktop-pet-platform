@@ -136,7 +136,9 @@ const INSET_JS = `ObjC.import("AppKit");ObjC.import("CoreGraphics");
 const sc=$.NSScreen.screens.objectAtIndex(0);const f=sc.frame;
 const list=ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo(1,0)))||[];
 const fs=list.some(w=>w.kCGWindowLayer===0&&w.kCGWindowBounds&&w.kCGWindowBounds.X===0&&w.kCGWindowBounds.Width>=f.size.width-1&&w.kCGWindowBounds.Y+w.kCGWindowBounds.Height>=f.size.height-1);
-JSON.stringify(fs?0:sc.visibleFrame.origin.y-f.origin.y)`; // another app fullscreen (a full-width window reaching the screen bottom, which the Dock normally blocks) => Dock is hidden
+const sw=f.size.width-1,sh=f.size.height-1;
+const moving=list.some(w=>w.kCGWindowBounds&&w.kCGWindowBounds.Width>=sw&&w.kCGWindowBounds.Height>=sh&&w.kCGWindowBounds.X!==0);
+JSON.stringify(moving?-1:fs?0:sc.visibleFrame.origin.y-f.origin.y)`; // -1 = space-switch animation in progress, reading is meaningless // another app fullscreen (a full-width window reaching the screen bottom, which the Dock normally blocks) => Dock is hidden
 function bottomInset() {
   return new Promise((resolve) => {
     if (process.platform !== "darwin") return resolve(null);
@@ -147,11 +149,13 @@ function bottomInset() {
   });
 }
 
+// Returns null while a space switch animation is running (keep the current position).
 async function petBounds() {
   const d = screen.getPrimaryDisplay();
   const { x, width } = d.workArea;
   const inset = await bottomInset();
   if (process.env.PET_DEBUG) require("fs").appendFileSync("/tmp/pet-debug.log", `${new Date().toISOString()} inset=${inset} bounds=${JSON.stringify(d.bounds)} work=${JSON.stringify(d.workArea)}\n`);
+  if (inset === -1) return null;
   const bottom = inset == null ? d.workArea.y + d.workArea.height : d.bounds.y + d.bounds.height - inset;
   return { x, y: Math.round(bottom - PET_HEIGHT), width, height: PET_HEIGHT };
 }
@@ -188,6 +192,7 @@ function createPetWindow() {
     try {
       const b = await petBounds();
       if (!petWin) return;
+      if (!b) { pending = null; streak = 0; return; }
       const c = petWin.getBounds();
       if (b.x === c.x && b.y === c.y && b.width === c.width && b.height === c.height) { pending = null; streak = 0; return; }
       if (pending && pending.y === b.y && pending.x === b.x && pending.width === b.width) streak++;
