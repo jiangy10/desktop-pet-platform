@@ -1,0 +1,213 @@
+{
+  "version": 1,
+  "id": "brian-sample",
+  "name": "Brian (sample)",
+  "size": 160,
+  "entry": "stand",
+  "nodes": [
+    {
+      "id": "stand",
+      "type": "simple",
+      "label": "Stand",
+      "position": {
+        "x": 0,
+        "y": 200
+      },
+      "facing": "keep",
+      "clip": {
+        "left": "stand_left.gif",
+        "durationMs": 1800
+      },
+      "dwellMs": [
+        1000,
+        5000
+      ],
+      "speed": 0
+    },
+    {
+      "id": "move",
+      "type": "simple",
+      "label": "Walk",
+      "position": {
+        "x": 280,
+        "y": 360
+      },
+      "facing": "random",
+      "clip": {
+        "left": "move_left.gif",
+        "durationMs": 1800
+      },
+      "dwellMs": [
+        1800,
+        9000
+      ],
+      "speed": 100
+    },
+    {
+      "id": "research",
+      "type": "action",
+      "label": "Research",
+      "position": {
+        "x": 560,
+        "y": 0
+      },
+      "facing": "keep",
+      "start": {
+        "left": "research_start_left.gif",
+        "durationMs": 900
+      },
+      "cycle": {
+        "left": "research_cycle_left.gif",
+        "durationMs": 2700
+      },
+      "end": {
+        "left": "research_end_left.gif",
+        "durationMs": 900
+      },
+      "repeat": [
+        1,
+        3
+      ]
+    },
+    {
+      "id": "think",
+      "type": "action",
+      "label": "Think",
+      "position": {
+        "x": 560,
+        "y": 160
+      },
+      "facing": "keep",
+      "start": {
+        "left": "think_start_left.gif",
+        "durationMs": 900
+      },
+      "cycle": {
+        "left": "think_cycle_left.gif",
+        "durationMs": 1800
+      },
+      "end": {
+        "left": "think_end_left.gif",
+        "durationMs": 900
+      },
+      "repeat": [
+        1,
+        3
+      ]
+    },
+    {
+      "id": "note",
+      "type": "action",
+      "label": "Take notes",
+      "position": {
+        "x": 560,
+        "y": 320
+      },
+      "facing": "keep",
+      "start": {
+        "left": "note_start_left.gif",
+        "durationMs": 900
+      },
+      "cycle": {
+        "left": "note_cycle_left.gif",
+        "durationMs": 2700
+      },
+      "end": {
+        "left": "note_end_left.gif",
+        "durationMs": 900
+      },
+      "repeat": [
+        1,
+        3
+      ]
+    },
+    {
+      "id": "microscope",
+      "type": "action",
+      "label": "Microscope",
+      "position": {
+        "x": 560,
+        "y": 480
+      },
+      "facing": "keep",
+      "start": {
+        "left": "microscope_start_left.gif",
+        "durationMs": 1350
+      },
+      "cycle": {
+        "left": "microscope_cycle_left.gif",
+        "durationMs": 1800
+      },
+      "end": {
+        "left": "microscope_end_left.gif",
+        "durationMs": 1350
+      },
+      "repeat": [
+        1,
+        3
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "s-m",
+      "from": "stand",
+      "to": "move",
+      "weight": 3
+    },
+    {
+      "id": "m-s",
+      "from": "move",
+      "to": "stand",
+      "weight": 1
+    },
+    {
+      "id": "s-research",
+      "from": "stand",
+      "to": "research",
+      "weight": 1
+    },
+    {
+      "id": "research-s",
+      "from": "research",
+      "to": "stand",
+      "weight": 1
+    },
+    {
+      "id": "s-think",
+      "from": "stand",
+      "to": "think",
+      "weight": 1
+    },
+    {
+      "id": "think-s",
+      "from": "think",
+      "to": "stand",
+      "weight": 1
+    },
+    {
+      "id": "s-note",
+      "from": "stand",
+      "to": "note",
+      "weight": 1
+    },
+    {
+      "id": "note-s",
+      "from": "note",
+      "to": "stand",
+      "weight": 1
+    },
+    {
+      "id": "s-microscope",
+      "from": "stand",
+      "to": "microscope",
+      "weight": 1
+    },
+    {
+      "id": "microscope-s",
+      "from": "microscope",
+      "to": "stand",
+      "weight": 1
+    }
+  ]
+}

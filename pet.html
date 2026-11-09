@@ -1,0 +1,17 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Pet</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+      /* Two stacked imgs form a double buffer: the new asset is loaded and decoded in the hidden one, then visibility is swapped */
+      .pet { position: absolute; bottom: 0; left: 0; pointer-events: none; user-select: none; visibility: hidden; }
+    </style>
+  </head>
+  <body>
+    <img id="petA" class="pet" alt="" />
+    <img id="petB" class="pet" alt="" />
+    <script type="module" src="/src/pet/main.ts"></script>
+  </body>
+</html>
